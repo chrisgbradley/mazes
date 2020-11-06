@@ -1,5 +1,5 @@
 from Mazes import Maze
-from tkinter import *
+import tkinter as tk
 
 
 def main():
@@ -7,17 +7,15 @@ def main():
     width = 75
     unit_size = 15
 
-    root = Tk()
+    root = tk.Tk()
     root.title("Maze")
-    canvas = Canvas(root, width=1125, height=750, background='gray90')
-    canvas.pack()
-
-    canvas.create_line(1, 1, 1, width * unit_size)
-    canvas.create_line(width * unit_size, 1, width * unit_size, height * unit_size)
-    canvas.create_line(1, 1, 1, height)
-    canvas.create_line(1, height * unit_size, width * unit_size, height * unit_size)
+    root.configure(background="black")
+    canvas = tk.Canvas(root, width=1125, height=750, background='gray90', borderwidth=0, highlightthickness=False)
+    canvas.pack(padx=10, pady=10)
 
     maze = Maze(height, width)
+
+    maze.draw(canvas, block_size=unit_size)
 
     root.mainloop()
 
