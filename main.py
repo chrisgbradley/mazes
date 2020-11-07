@@ -10,12 +10,13 @@ def main():
     root = tk.Tk()
     root.title("Maze")
     root.configure(background="black")
-    canvas = tk.Canvas(root, width=1125, height=750, background='gray90', borderwidth=0, highlightthickness=False)
+    canvas = tk.Canvas(master=root, width=1125, height=750, background='gray90', borderwidth=0, highlightthickness=False)
     canvas.pack(padx=10, pady=10)
 
-    maze = Maze(height, width)
+    maze = Maze(height, width, canvas, unit_size)
 
-    maze.draw(canvas, block_size=unit_size)
+    button = tk.Button(master=root, text="Generate Maze", command=maze.generateMaze, justify=tk.CENTER, padx=5, pady=10)
+    button.pack()
 
     root.mainloop()
 
