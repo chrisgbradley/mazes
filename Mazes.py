@@ -15,7 +15,8 @@ class Maze(object):
             self.x, self.y = x, y
             self.walls = {}
             self.color = None
-            # todo: add a visited boolean
+            self.visited = False
+            self.prev = None
 
         def getLocation(self):
             return self.x, self.y
@@ -33,15 +34,24 @@ class Maze(object):
 
         def destroy_wall(self, other, canvas: Canvas):
             wall = self.__get_cardinal(self, other)
+            print(wall)
             canvas.delete(self.walls[wall])
             self.walls[wall] = -1
             canvas.delete(other.walls[self.wall_pairs[wall]])
             other.walls[self.wall_pairs[wall]] = -1
+            print(self.walls)
+            print(other.walls)
+            canvas.update()
 
-        def shade_me(self, canvas: Canvas, block_size: int):
-            top_left = self.x * block_size, self.y * block_size
-            btm_right = self.x * block_size + block_size, self.y * block_size + block_size
-            self.color = canvas.create_rectangle(*top_left, *btm_right, fill='gray60', outline="")
+        def shade_me(self, canvas: Canvas, block_size: int, color: str):
+            top_left = self.x * block_size + 5, self.y * block_size + 5
+            btm_right = self.x * block_size + block_size - 5, self.y * block_size + block_size - 5
+            self.color = canvas.create_rectangle(*top_left, *btm_right, fill=color, outline="")
+            canvas.update()
+
+        def unshade_me(self, canvas: Canvas):
+            canvas.delete(self.color)
+            canvas.update()
 
         def __get_cardinal(self, node_a, node_b):
             x0, y0 = node_a.getLocation()
@@ -57,11 +67,17 @@ class Maze(object):
             else:
                 degrees_final = degrees
 
-            cardinal = ["N", "E", "S", "W", "N"]
+            cardinal = ["S", "SE", "E", "NE", "N", "NW", "W", "SW", "S"]
 
-            cardinal_lookup = round(degrees_final / 90)
+            cardinal_lookup = round(degrees_final / 45)
 
             return cardinal[cardinal_lookup]
+
+        def set_prev(self, prev):
+            self.prev = prev
+
+        def get_prev(self):
+            return self.prev
 
         def __eq__(self, other):
             return self.x == other.x and self.y == other.y
@@ -82,53 +98,90 @@ class Maze(object):
 
     def __populate(self):
         open_list = []
-        closed_list = [] # todo: sub closed list for visited booleans
 
+        # get random cell
         x = random.randint(1, self.GRID_WIDTH - 1)
         y = random.randint(1, self.GRID_LENGTH - 1)
         random_node = self.grid[y][x]
 
+        # add random node to open list
         open_list.append(random_node)
+        # init neighbors
         neighbors = []
+        active = None
+        count = 0
+
+        # while open list has cells
         while open_list:
+            if active is None:
+                active = open_list.pop()
+
+            print("\n\nevaluating: ", active.getLocation())
+            active.visited = True
+            neighbors = self.__get_neighbors(active)
+            if active.color is not None:
+                active.unshade_me(self.canvas)
+            active.shade_me(self.canvas, self.block_size, 'red')
+            self.canvas.after(25)
+            # if neighbors is empty
             if not neighbors:
-                active = self.__heuristic_select(open_list)
-            active.shade_me(self.canvas, self.block_size)
-            neighbors = self.__get_neighbors(active, closed_list, open_list)
-            if not neighbors:
-                continue
+                # walk backwards
+                print("walking")
+                while not neighbors:
+                    print("current: ", active.getLocation())
+                    active = active.get_prev()
+                    print("previous, now current", active.getLocation())
+                    neighbors = self.__get_neighbors(active)
             else:
+                for neighbor in neighbors:
+                    neighbor.shade_me(self.canvas, self.block_size, 'grey70')
                 future = self.__heuristic_select(neighbors)
-                [open_list.append(neighbor) for neighbor in neighbors]
+                for neighbor in neighbors:
+                    if neighbor is not active.get_prev() and neighbor not in open_list:
+                        open_list.append(neighbor)
+                print("destroying wall between: ", active.getLocation(), future.getLocation())
                 active.destroy_wall(future, self.canvas)
-                closed_list.append(active)
+                future.set_prev(active)
+
                 active = future
 
-    def __get_neighbors(self, node, closed, openl):
+    def __get_neighbors(self, node):
         n, s, e, w = 0, 0, 0, 0
 
         neighbors = []
 
-        if node.y >= 1:
-            n = self.grid[node.y - 1][node.x]
-        if node.y < self.GRID_LENGTH - 1:
-            s = self.grid[node.y + 1][node.x]
-        if node.x >= 1:
-            e = self.grid[node.y][node.x - 1]
-        if node.x < self.GRID_WIDTH - 1:
-            w = self.grid[node.y][node.x + 1]
+        x, y = node.getLocation()
+
+        if y >= 1:
+            n = self.grid[y - 1][x]
+        if y < self.GRID_LENGTH - 1:
+            s = self.grid[y + 1][x]
+        if x >= 1:
+            e = self.grid[y][x - 1]
+        if x < self.GRID_WIDTH - 1:
+            w = self.grid[y][x + 1]
 
         for neighbor in [n, s, e, w]:
-            if not isinstance(neighbor, int):
-                if neighbor not in closed and node not in openl:
-                    # todo: if not neighbor.visited
+            if isinstance(neighbor, self._Node):
+                if not neighbor.visited:
                     neighbors.append(neighbor)
+        print("Neighbors: ", " ".join(str(x.getLocation()) for x in neighbors))
         return neighbors
 
     def __heuristic_select(self, alist):
-        return alist.pop()
+        if random.randrange(0, 99) < 100:
+            element = alist[random.randint(0, len(alist)-1)]
+            alist.remove(element)
+        else:
+            element = alist.pop()
+        return element
 
     def __draw(self):
         for row in self.grid:
             for node in row:
                 node.draw(self.canvas, self.block_size)
+
+    def detectWalls(self):
+        for row in self.grid:
+            for n in row:
+                print(n.walls)
