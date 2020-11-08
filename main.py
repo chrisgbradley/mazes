@@ -3,19 +3,22 @@ import tkinter as tk
 
 
 def main():
-    height = 50
-    width = 75
-    unit_size = 15
+    height = 25
+    width = 50
+    unit_size = 50
 
     root = tk.Tk()
     root.title("Maze")
     root.configure(background="black")
-    canvas = tk.Canvas(master=root, width=1125, height=750, background='gray90', borderwidth=0, highlightthickness=False)
+    canvas = tk.Canvas(master=root, width=2500, height=1250, background='gray90', borderwidth=0, highlightthickness=False)
     canvas.pack(padx=10, pady=10)
 
     maze = Maze(height, width, canvas, unit_size)
 
     button = tk.Button(master=root, text="Generate Maze", command=maze.generateMaze, justify=tk.CENTER, padx=5, pady=10)
+    button.pack()
+
+    button = tk.Button(master=root, text="Unshade Maze", command=maze.unshade_everything, justify=tk.CENTER, padx=5, pady=10)
     button.pack()
 
     root.mainloop()

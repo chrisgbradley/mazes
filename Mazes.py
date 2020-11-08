@@ -34,18 +34,17 @@ class Maze(object):
 
         def destroy_wall(self, other, canvas: Canvas):
             wall = self.__get_cardinal(self, other)
-            print(wall)
             canvas.delete(self.walls[wall])
             self.walls[wall] = -1
             canvas.delete(other.walls[self.wall_pairs[wall]])
             other.walls[self.wall_pairs[wall]] = -1
-            print(self.walls)
-            print(other.walls)
             canvas.update()
 
         def shade_me(self, canvas: Canvas, block_size: int, color: str):
-            top_left = self.x * block_size + 5, self.y * block_size + 5
-            btm_right = self.x * block_size + block_size - 5, self.y * block_size + block_size - 5
+            self.unshade_me(canvas)
+            size = 15
+            top_left = self.x * block_size + size, self.y * block_size + size
+            btm_right = self.x * block_size + block_size - size, self.y * block_size + block_size - size
             self.color = canvas.create_rectangle(*top_left, *btm_right, fill=color, outline="")
             canvas.update()
 
@@ -116,21 +115,19 @@ class Maze(object):
             if active is None:
                 active = open_list.pop()
 
-            print("\n\nevaluating: ", active.getLocation())
             active.visited = True
             neighbors = self.__get_neighbors(active)
             if active.color is not None:
                 active.unshade_me(self.canvas)
             active.shade_me(self.canvas, self.block_size, 'red')
-            self.canvas.after(25)
+            self.canvas.after(10)
             # if neighbors is empty
             if not neighbors:
                 # walk backwards
-                print("walking")
                 while not neighbors:
-                    print("current: ", active.getLocation())
                     active = active.get_prev()
-                    print("previous, now current", active.getLocation())
+                    if active is None:
+                        return
                     neighbors = self.__get_neighbors(active)
             else:
                 for neighbor in neighbors:
@@ -139,7 +136,6 @@ class Maze(object):
                 for neighbor in neighbors:
                     if neighbor is not active.get_prev() and neighbor not in open_list:
                         open_list.append(neighbor)
-                print("destroying wall between: ", active.getLocation(), future.getLocation())
                 active.destroy_wall(future, self.canvas)
                 future.set_prev(active)
 
@@ -165,7 +161,6 @@ class Maze(object):
             if isinstance(neighbor, self._Node):
                 if not neighbor.visited:
                     neighbors.append(neighbor)
-        print("Neighbors: ", " ".join(str(x.getLocation()) for x in neighbors))
         return neighbors
 
     def __heuristic_select(self, alist):
@@ -181,7 +176,25 @@ class Maze(object):
             for node in row:
                 node.draw(self.canvas, self.block_size)
 
-    def detectWalls(self):
-        for row in self.grid:
-            for n in row:
-                print(n.walls)
+    def unshade_everything(self):
+        number_of_diagonals = self.GRID_WIDTH + self.GRID_LENGTH - 1
+
+        for diagonal_row in range(number_of_diagonals):
+            if diagonal_row <= self.GRID_WIDTH - 1:
+                for y, x in zip(range(self.GRID_LENGTH), range(diagonal_row - 1, -1, -1)):
+                    node = self.grid[y][x]
+                    node.unshade_me(self.canvas)
+            elif diagonal_row >= self.GRID_WIDTH:
+                x = self.GRID_WIDTH - 1
+                for y in range(diagonal_row - self.GRID_WIDTH, self.GRID_LENGTH):
+                    if x == self.GRID_WIDTH - self.GRID_LENGTH - 1:
+                        x = self.GRID_WIDTH - 1
+                    node = self.grid[y][x]
+                    x -= 1
+                    node.unshade_me(self.canvas)
+            else:
+                for y, x in zip(range(0, self.GRID_LENGTH), range(self.GRID_WIDTH - 1, self.GRID_LENGTH - self.GRID_WIDTH, -1)):
+                    node = self.grid[y][x]
+                    node.unshade_me(self.canvas)
+
+        self.grid[self.GRID_LENGTH - 1][self.GRID_WIDTH - 1].unshade_me(self.canvas)
