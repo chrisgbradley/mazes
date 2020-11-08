@@ -41,3 +41,6 @@ around to it.
 
 #### UI Feedback
 * Add a progress bar for progress until maze is generated
+
+#### GIT
+* Use branches and merges for future features
