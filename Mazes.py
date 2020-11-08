@@ -23,19 +23,43 @@ class Maze(object):
             btm_left = self.x * block_size, self.y * block_size + block_size
             btm_right = self.x * block_size + block_size, self.y * block_size + block_size
 
-            self.walls['N'] = canvas.create_line(*top_left, *top_right)
-            self.walls['S'] = canvas.create_line(*btm_left, *btm_right)
-            self.walls['E'] = canvas.create_line(*top_right, *btm_right)
-            self.walls['W'] = canvas.create_line(*top_left, *btm_left)
+            if 'N' not in self.walls.keys():
+                self.walls['N'] = canvas.create_line(*top_left, *top_right)
+            elif 'N' in self.walls.keys():
+                if self.walls['N'] != -1:
+                    self.walls['N'] = canvas.create_line(*top_left, *top_right)
 
-        def destroy_wall(self, other, canvas: Canvas):
+            if 'S' not in self.walls.keys():
+                self.walls['S'] = canvas.create_line(*btm_left, *btm_right)
+            elif 'S' in self.walls.keys():
+                if self.walls['S'] != -1:
+                    self.walls['S'] = canvas.create_line(*btm_left, *btm_right)
+
+            if 'E' not in self.walls.keys():
+                self.walls['E'] = canvas.create_line(*top_right, *btm_right)
+            elif 'E' in self.walls.keys():
+                if self.walls['E'] != -1:
+                    self.walls['E'] = canvas.create_line(*top_right, *btm_right)
+
+            if 'W' not in self.walls.keys():
+                self.walls['W'] = canvas.create_line(*top_left, *btm_left)
+            elif 'W' in self.walls.keys():
+                if self.walls['W'] != -1:
+                    self.walls['W'] = canvas.create_line(*top_left, *btm_left)
+
+        def destroy_wall(self, other, canvas: Canvas, visualize: bool):
             wall = self.__get_cardinal(self, other)
-            canvas.delete(self.walls[wall])
-            self.walls[wall] = -1
             opposite_wall = self.__get_opposite_DIR(wall)
-            canvas.delete(other.walls[opposite_wall])
+
+            # VISUAL CUE
+            if visualize:
+                canvas.delete(self.walls[wall])
+                canvas.delete(other.walls[opposite_wall])
+                canvas.update()
+            # END VISUAL CUE
+
+            self.walls[wall] = -1
             other.walls[opposite_wall] = -1
-            canvas.update()
 
         def shade_me(self, canvas: Canvas, block_size: int, color: str):
             self.unshade_me(canvas)
@@ -56,8 +80,8 @@ class Maze(object):
             dx = x1 - x0
             dy = y1 - y0
 
+            # unit circle!
             degrees = atan2(dx, dy) / pi * 180
-
             if degrees < 0:
                 degrees_final = 360 + degrees
             else:
@@ -82,8 +106,9 @@ class Maze(object):
         def __eq__(self, other):
             return self.x == other.x and self.y == other.y
 
-    def __init__(self, length, width, canvas: Canvas, block_size: int, iterate_delay=0, method=0):
+    def __init__(self, length, width, block_size: int, iterate_delay=0, method=0, canvas=None, visualize_gen=False):
         self.canvas = canvas
+        self.visualize_gen = visualize_gen
         self.block_size = block_size
         self.GRID_LENGTH, self.GRID_WIDTH = length, width
         self.grid = [[self._Node(col, row) for col in range(self.GRID_WIDTH)] for row in range(self.GRID_LENGTH)]
@@ -94,10 +119,12 @@ class Maze(object):
         self._iterate_delay = iterate_delay
         self._method = method
 
-        self.__draw()
+        if self.visualize_gen:
+            self.__draw()
 
     def generateMaze(self):
         self.__populate()
+        self.__construct_maze()
 
     def __populate(self):
         open_list = []
@@ -109,22 +136,27 @@ class Maze(object):
 
         # add random node to open list
         open_list.append(random_node)
-        # init neighbors
-        neighbors = []
         active = None
-        count = 0
 
         # while open list has cells
         while open_list:
+            # should only get called on first loop
             if active is None:
                 active = open_list.pop()
 
+            # mark the node
             active.visited = True
+            # get node neighbors
             neighbors = self.__get_neighbors(active)
-            if active.color is not None:
-                active.unshade_me(self.canvas)
-            active.shade_me(self.canvas, self.block_size, 'red')
-            self.canvas.after(self._iterate_delay)
+
+            # VISUAL CUE
+            if self.visualize_gen:
+                if active.color is not None:
+                    active.unshade_me(self.canvas)
+                active.shade_me(self.canvas, self.block_size, 'red')
+                self.canvas.after(self._iterate_delay)
+            # END VISUAL CUE
+
             # if neighbors is empty
             if not neighbors:
                 # walk backwards
@@ -134,16 +166,30 @@ class Maze(object):
                         return
                     neighbors = self.__get_neighbors(active)
             else:
-                for neighbor in neighbors:
-                    neighbor.shade_me(self.canvas, self.block_size, 'grey70')
+                # VISUAL CUE
+                if self.visualize_gen:
+                    for neighbor in neighbors:
+                        neighbor.shade_me(self.canvas, self.block_size, 'grey70')
+                # END VISUAL CUE
+
+                # pick next node to visit
                 future = self.__heuristic_select(neighbors)
+                # add other neighbors to open list, if any
                 for neighbor in neighbors:
                     if neighbor is not active.get_prev() and neighbor not in open_list:
                         open_list.append(neighbor)
-                active.destroy_wall(future, self.canvas)
-                future.set_prev(active)
 
+                active.destroy_wall(future, self.canvas, self.visualize_gen)
+
+                # allow back tracing
+                future.set_prev(active)
+                # proceed to next node
                 active = future
+
+        # VISUAL CUE
+        if self.canvas is not None and not self.visualize_gen:
+            self.__construct_maze()
+        # END VISUAL CUE
 
     def __get_neighbors(self, node):
         n, s, e, w = 0, 0, 0, 0
@@ -176,6 +222,11 @@ class Maze(object):
         return element
 
     def __draw(self):
+        for row in self.grid:
+            for node in row:
+                node.draw(self.canvas, self.block_size)
+
+    def __construct_maze(self):
         for row in self.grid:
             for node in row:
                 node.draw(self.canvas, self.block_size)

@@ -14,7 +14,7 @@ def main():
     canvas = tk.Canvas(master=root, width=2500, height=1250, background='gray90', borderwidth=0, highlightthickness=False)
     canvas.pack(padx=10, pady=10)
 
-    maze = Maze(height, width, canvas, unit_size, iterate_delay)
+    maze = Maze(height, width, unit_size, iterate_delay=iterate_delay, canvas=canvas, visualize_gen=False)
 
     button = tk.Button(master=root, text="Generate Maze", command=maze.generateMaze, justify=tk.CENTER, padx=5, pady=10)
     button.pack()
