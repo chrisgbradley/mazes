@@ -6,17 +6,13 @@ from tkinter import Canvas
 
 class Maze(object):
     class _Node:
-        wall_pairs = {'N': 'S',
-                      'S': 'N',
-                      'E': 'W',
-                      'W': 'E'}
-
         def __init__(self, x, y):
             self.x, self.y = x, y
             self.walls = {}
             self.color = None
             self.visited = False
             self.prev = None
+            self._DIRS = ["S", "SE", "E", "NE", "N", "NW", "W", "SW"]
 
         def getLocation(self):
             return self.x, self.y
@@ -36,8 +32,9 @@ class Maze(object):
             wall = self.__get_cardinal(self, other)
             canvas.delete(self.walls[wall])
             self.walls[wall] = -1
-            canvas.delete(other.walls[self.wall_pairs[wall]])
-            other.walls[self.wall_pairs[wall]] = -1
+            opposite_wall = self.__get_opposite_DIR(wall)
+            canvas.delete(other.walls[opposite_wall])
+            other.walls[opposite_wall] = -1
             canvas.update()
 
         def shade_me(self, canvas: Canvas, block_size: int, color: str):
@@ -66,11 +63,15 @@ class Maze(object):
             else:
                 degrees_final = degrees
 
-            cardinal = ["S", "SE", "E", "NE", "N", "NW", "W", "SW", "S"]
-
             cardinal_lookup = round(degrees_final / 45)
 
-            return cardinal[cardinal_lookup]
+            return self._DIRS[cardinal_lookup]
+
+        def __get_opposite_DIR(self, DIR):
+            index = self._DIRS.index(DIR) + 4
+            if index >= len(self._DIRS):
+                index = index - len(self._DIRS)
+            return self._DIRS[index]
 
         def set_prev(self, prev):
             self.prev = prev
@@ -81,7 +82,7 @@ class Maze(object):
         def __eq__(self, other):
             return self.x == other.x and self.y == other.y
 
-    def __init__(self, length, width, canvas: Canvas, block_size: int, method=0):
+    def __init__(self, length, width, canvas: Canvas, block_size: int, iterate_delay=0, method=0):
         self.canvas = canvas
         self.block_size = block_size
         self.GRID_LENGTH, self.GRID_WIDTH = length, width
@@ -89,6 +90,9 @@ class Maze(object):
 
         self.START = random.randint(1, self.GRID_LENGTH - 1)
         self.GOAL = random.randint(1, self.GRID_LENGTH - 1)
+
+        self._iterate_delay = iterate_delay
+        self._method = method
 
         self.__draw()
 
@@ -120,7 +124,7 @@ class Maze(object):
             if active.color is not None:
                 active.unshade_me(self.canvas)
             active.shade_me(self.canvas, self.block_size, 'red')
-            self.canvas.after(10)
+            self.canvas.after(self._iterate_delay)
             # if neighbors is empty
             if not neighbors:
                 # walk backwards
