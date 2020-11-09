@@ -251,7 +251,7 @@ class Maze(object):
 
         self.grid[self.GRID_LENGTH - 1][self.GRID_WIDTH - 1].unshade_me(self.canvas)
 
-    def save_to_svg(self, file_name: str):
+    def save_to_svg(self, file_name: str, add_styling=False):
         # If file exists append a number
         if Path(file_name).exists():
             index = 1
@@ -271,6 +271,10 @@ class Maze(object):
         file_path = Path(file_name)
         file = open(file_path, "w")
 
+        styles = ""
+        if add_styling:
+            styles = "border:25px solid black;margin:50px auto;padding:10px;"
+
         # BEGIN SVG EDIT
         file.write("<svg width=\"" + str(width) + "px\" height=\"" + str(height) + "px\" "
                    "viewBox=\"0 0 " + str(width) + " " + str(height) + "\" "
@@ -279,9 +283,7 @@ class Maze(object):
                    "display:flex;"
                    "justify-content:center;"
                    "align-items:center;"
-                   "border:25px solid black;"
-                   "margin:50px auto;"
-                   "padding:10px;\" "
+                   "" + styles + "\" "
                    "xmlns=\"http://www.w3.org/2000/svg\">")  # end opening tag
 
         for row in self.grid:
