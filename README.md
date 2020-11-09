@@ -25,7 +25,7 @@ Some things that I would like to play around with and implement, but life is bus
 around to it.
 
 #### File writing
-* Saving the maze to SVG
+* ~~Saving the maze to SVG~~ 🗸
 * Loading a maze from SVG
 
 #### OpenCV
