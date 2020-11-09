@@ -2,6 +2,7 @@ import random
 from math import atan2
 from math import pi
 from tkinter import Canvas
+from pathlib import Path
 
 
 class Maze(object):
@@ -64,7 +65,7 @@ class Maze(object):
 
         def shade_me(self, canvas: Canvas, block_size: int, color: str):
             self.unshade_me(canvas)
-            size = 15
+            size = 3
             top_left = self.x * block_size + size, self.y * block_size + size
             btm_right = self.x * block_size + block_size - size, self.y * block_size + block_size - size
             self.color = canvas.create_rectangle(*top_left, *btm_right, fill=color, outline="")
@@ -121,13 +122,9 @@ class Maze(object):
         self._method = method
 
         if self.visualize_gen:
-            self.__draw()
+            self.__construct_maze()
 
-    def generateMaze(self):
-        self.__populate()
-        self.__construct_maze()
-
-    def __populate(self):
+    def __carve_maze(self):
         open_list = []
 
         # get random cell
@@ -222,15 +219,14 @@ class Maze(object):
             element = alist.pop()
         return element
 
-    def __draw(self):
-        for row in self.grid:
-            for node in row:
-                node.draw(self.canvas, self.block_size)
-
     def __construct_maze(self):
         for row in self.grid:
             for node in row:
                 node.draw(self.canvas, self.block_size)
+
+    def generate_maze(self):
+        self.__carve_maze()
+        self.__construct_maze()
 
     def unshade_everything(self):
         number_of_diagonals = self.GRID_WIDTH + self.GRID_LENGTH - 1
@@ -254,3 +250,54 @@ class Maze(object):
                     node.unshade_me(self.canvas)
 
         self.grid[self.GRID_LENGTH - 1][self.GRID_WIDTH - 1].unshade_me(self.canvas)
+
+    def save_to_svg(self, file_name: str):
+        # If file exists append a number
+        if Path(file_name).exists():
+            index = 1
+            new_file_name = file_name + "_" + str(index)
+            while Path(file_name).exists():
+                if Path(new_file_name).exists():
+                    index += 1
+                    new_file_name = file_name + "_" + str(index)
+            file_name = new_file_name
+
+        file_name += ".svg"
+
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+
+        # make file path and open file
+        file_path = Path(file_name)
+        file = open(file_path, "w")
+
+        # BEGIN SVG EDIT
+        file.write("<svg width=\"" + str(width) + "px\" height=\"" + str(height) + "px\" "
+                   "viewBox=\"0 0 " + str(width) + " " + str(height) + "\" "
+                   "preserveAspectRatio=\"xMinYMin meet\" "
+                   "style=\""
+                   "display:flex;"
+                   "justify-content:center;"
+                   "align-items:center;"
+                   "border:25px solid black;"
+                   "margin:50px auto;"
+                   "padding:10px;\" "
+                   "xmlns=\"http://www.w3.org/2000/svg\">")  # end opening tag
+
+        for row in self.grid:
+            for node in row:        # for each node in the grid
+                for direction in node.walls:  # grab that node's walls
+                    wall = node.walls[direction]
+                    if wall != -1:      # ignore the "wall" if it was carved out
+                        x1, y1, x2, y2 = self.canvas.coords(wall)
+                        file.write("<line x1=\"" + str(x1) + "\"  x2=\"" + str(x2) + "\" ")
+                        file.write("y1=\"" + str(y1) + "\"  y2=\"" + str(y2) + "\" ")
+                        file.write("stroke=\"#000000\" stroke-width=\"1\"/>")
+
+        file.write("</svg>")
+        # END SVG EDIT
+
+        # remember to close file when done
+        file.close()
+
+        return self
