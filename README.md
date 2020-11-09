@@ -19,6 +19,10 @@ struggle and I had already implemented a decent bit of the algorithm. What ended
 thought `.after()` was working. This could have been easily remedied if I just tested the canvas a bit before diving into the
 algorithm.
 
+### Making an SVG
+Over all...super easy. SVG language is documented thoroughly and any wierd thing you want to do has probably already been done before.
+The method I used is very much a brute force approach. I definitely feel like it could be compressed.
+
 
 ## Potential Goals
 Some things that I would like to play around with and implement, but life is busy right now and I may or may not get
@@ -27,6 +31,7 @@ around to it.
 #### File writing
 * ~~Saving the maze to SVG~~ 🗸
 * Loading a maze from SVG
+* SVG Compression
 
 #### OpenCV
 * Using OCR to load a maze from any type of picture
