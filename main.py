@@ -26,6 +26,9 @@ def main():
     button = tk.Button(buttons, text="Save Maze", command=lambda: maze.save_to_svg("maze", True), justify=tk.CENTER, padx=50, pady=10)
     button.pack(side=tk.RIGHT)
 
+    button = tk.Button(buttons, text="Load Maze", command=lambda: maze.load_from_svg("maze.svg"), justify=tk.CENTER, padx=50, pady=10)
+    button.pack(side=tk.RIGHT)
+
     button = tk.Button(buttons, text="Unshade Maze", command=maze.unshade_everything, justify=tk.CENTER, padx=50, pady=10)
     button.pack(side=tk.RIGHT)
 

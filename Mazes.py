@@ -3,6 +3,7 @@ from math import atan2
 from math import pi
 from tkinter import Canvas
 from pathlib import Path
+import re
 
 
 class Maze(object):
@@ -50,7 +51,7 @@ class Maze(object):
                     self.walls['W'] = canvas.create_line(*top_left, *btm_left)
 
         def destroy_wall(self, other, canvas: Canvas, visualize: bool):
-            wall = self.__get_cardinal(self, other)
+            wall = self.get_cardinal_from_nodes(self, other)
             opposite_wall = self.__get_opposite_DIR(wall)
 
             # VISUAL CUE
@@ -75,10 +76,23 @@ class Maze(object):
             canvas.delete(self.color)
             canvas.update()
 
-        def __get_cardinal(self, node_a, node_b):
-            x0, y0 = node_a.getLocation()
-            x1, y1 = node_b.getLocation()
+        def get_cardinal_from_nodes(self, a, b):
+            if not isinstance(a, type(self)) or not isinstance(b, type(self)):
+                raise ValueError("a and b must be of type _Node."
+                                 "\na: " + type(a) +
+                                 "\nb: " + type(b))
+            x0, y0 = a.getLocation()
+            x1, y1 = b.getLocation()
 
+            cardinal_lookup = self.__determine_cardinal_index(x0, x1, y0, y1)
+
+            return self._DIRS[cardinal_lookup]
+
+        def get_cardinal_from_coords(self, x0, x1, y0, y1):
+            cardinal_lookup = self.__determine_cardinal_index(x0, x1, y0, y1)
+            return self._DIRS[cardinal_lookup]
+
+        def __determine_cardinal_index(self, x0, x1, y0, y1):
             dx = x1 - x0
             dy = y1 - y0
 
@@ -89,9 +103,14 @@ class Maze(object):
             else:
                 degrees_final = degrees
 
-            cardinal_lookup = round(degrees_final / 45)
+            cardinal_index = round(degrees_final / 45)
 
-            return self._DIRS[cardinal_lookup]
+            if cardinal_index > len(self._DIRS):
+                raise IndexError("cardinal_index is not within the index range of _Node._DIRS.\n"
+                                 "Something is probably wrong with the values being passed to "
+                                 "cardinal determination function.")
+
+            return cardinal_index
 
         def __get_opposite_DIR(self, DIR):
             index = self._DIRS.index(DIR) + 4
@@ -105,12 +124,20 @@ class Maze(object):
         def get_prev(self):
             return self.prev
 
+        def put_wall_at_cardinal(self):
+
         def __eq__(self, other):
             return self.x == other.x and self.y == other.y
 
-    def __init__(self, length, width, block_size: int, iterate_delay=0, method=0, canvas=None, visualize_gen=False):
-        self.canvas = canvas
-        self.visualize_gen = visualize_gen
+    def __init__(self,
+                 file_name="", cell_wall_coords=None,  # use a file name to construct
+                 length=0, width=0, block_size=0,  # use cell dimensions to construct maze
+                 iterate_delay=0, method=0, canvas=None, visualize_gen=False
+                 ):
+        self._file_name = file_name
+
+        self._cell_wall_coords = cell_wall_coords
+
         self.block_size = block_size
         self.GRID_LENGTH, self.GRID_WIDTH = length, width
         self.grid = [[self._Node(col, row) for col in range(self.GRID_WIDTH)] for row in range(self.GRID_LENGTH)]
@@ -118,11 +145,20 @@ class Maze(object):
         self.START = random.randint(1, self.GRID_LENGTH - 1)
         self.GOAL = random.randint(1, self.GRID_LENGTH - 1)
 
+        # OPTIONS
         self._iterate_delay = iterate_delay
         self._method = method
+        self.canvas = canvas
+        self.visualize_gen = visualize_gen
 
+        if self._file_name:
+            self.load_from_svg(self._file_name)
+        elif not all([length, width, block_size]):
+            raise ValueError("Must have either a file name or non-zero tuple<int, int, int>")
+        elif self._cell_wall_coords is not None:
+            self.__construct_maze_from_coords()
         if self.visualize_gen:
-            self.__construct_maze()
+            self.__construct_maze_with_vis()
 
     def __carve_maze(self):
         open_list = []
@@ -186,7 +222,7 @@ class Maze(object):
 
         # VISUAL CUE
         if self.canvas is not None and not self.visualize_gen:
-            self.__construct_maze()
+            self.__construct_maze_with_vis()
         # END VISUAL CUE
 
     def __get_neighbors(self, node):
@@ -219,14 +255,30 @@ class Maze(object):
             element = alist.pop()
         return element
 
-    def __construct_maze(self):
+    def __construct_maze_from_coords(self):
+        coords_index = 0
+        wall = None
+        for row in self.grid:
+            for cell in row:
+                while True:  # while in current cell's bounds
+                    wall = self._cell_wall_coords[coords_index]  # get the next wall (carries to next cell)
+                    highest_val = max(wall)  # largest value from the coordinate set
+                    cell_x, cell_y = cell.getLocation()  # get cell's coords
+                    if highest_val > cell_x or highest_val > cell_y:  # check if in cell bounds
+                        break
+                    cardinal = cell.get_cardinal_from_coords(*wall)
+                    if self.canvas is not None:
+                        cell.put_wall_at_cardinal(cardinal, self.canvas, self.block_size)
+                    coords_index += 1  # update coords index
+                cell.update_any_empty_walls()
+
+    def __construct_maze_with_vis(self):
         for row in self.grid:
             for node in row:
                 node.draw(self.canvas, self.block_size)
 
     def generate_maze(self):
         self.__carve_maze()
-        self.__construct_maze()
 
     def unshade_everything(self):
         number_of_diagonals = self.GRID_WIDTH + self.GRID_LENGTH - 1
@@ -303,3 +355,73 @@ class Maze(object):
         file.close()
 
         return self
+
+    def load_from_svg(self, file_name: str):
+        """
+        :param file_name:
+        :type file_name:
+        :return:
+        :rtype:
+        """
+        if not Path(file_name).exists():
+            FileNotFoundError(file_name + " does not exist.")
+            return -1
+
+        file = open(Path(file_name), "r")
+        coordinate_string = 'x1="[0-9]+.[0-9]+"  x2="[0-9]+.[0-9]+" y1="[0-9]+.[0-9]+"  y2="[0-9]+.[0-9]+"'
+        # whole string > first char > first char > minus first char > first char
+        regex = r'(?:(' + coordinate_string + '))'
+
+        coords = []
+        for coord_set in self.__each_chunk(file, regex=regex):
+            # if last element contains the closing svg tag, it wont have coords in it
+            # you've already got all the coords
+            if "</svg>" in coord_set:
+                break
+            # process coordinate set
+            coords.append([int(float(x)) for x in re.findall(r'[0-9]+.[0-9]+', coord_set)])
+
+        any_coordinate_set = coords[random.randint(0, len(coords) - 1)]
+
+        dx = abs(any_coordinate_set[0] - any_coordinate_set[1])
+        dy = abs(any_coordinate_set[2] - any_coordinate_set[3])
+
+        block_size = max(dx, dy)
+
+        width, length = 0, 0
+
+        for wall in coords:
+            width = max(width, wall[0], wall[1])
+            length = max(length, wall[2], wall[3])
+
+        maze = Maze(cell_wall_coords=coords, length=length, width=width, block_size=block_size)
+
+        file.close()
+
+    def __each_chunk(self, stream, regex):
+        """
+
+        :param stream:
+        :type stream:
+        :param separator:
+        :type separator:
+        :return:
+        :rtype:
+        :see: https://stackoverflow.com/questions/47927039/reading-a-file-until-a-specific-character-in-python
+        """
+        CHUNK_SIZE = 4096
+        buffer = ''
+        while True:  # break on EOF
+            chunk = stream.read(CHUNK_SIZE)
+            if not chunk:  # EOF
+                yield buffer
+                break  # kill loop
+            buffer += chunk
+            # break apart buffer into parts
+            while True:  # until no separator is found
+                try:
+                    trash, part, buffer = re.split(regex, buffer, maxsplit=1)
+                except ValueError:
+                    break
+                else:
+                    yield part
